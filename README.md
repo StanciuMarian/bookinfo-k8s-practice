@@ -1,8 +1,6 @@
-# bookinfo-practice
-![](https://i.ibb.co/0M6JR1X/full-example.png)
 
 ### In this exercise we will be deploying an application to a Kubernetes cluster.  
-We will be using [this application](https://i.ibb.co/0M6JR1X/full-example.png) and will start from the [kubernetes-practice](https://github.ibm.com/BNPPCloudTeam/kubernetes-practice/tree/kubernetes-exercises/bookinfo-practice) repo(master branch). We already have all the Dockerfiles created and a docker-compose.yaml.   
+We will be using [this application](https://i.ibb.co/0M6JR1X/full-example.png) and will start from the [kubernetes-practice](https://github.ibm.com/BNPPCloudTeam/kubernetes-practice) repo(master branch). We already have all the Dockerfiles created and a docker-compose.yaml.   
 All the commands were executed in a bash shell and not all of them will work in other shells. You can use Git Bash for Windows. We will be using `bookinfo-practice` folder as the root folder for all the commands.  
 
 Table of contents:   
@@ -13,6 +11,7 @@ Table of contents:
 5. [Kubernetes Web Dashboard](#v-kubernetes-web-dashboard)
 6. [ConfigMaps and Secrets](#vi-configmaps-and-secrets)
 7. [Namespaces, probes, Quality of Service and more](#vii-namespaces-probes-quality-of-service-and-more)
+8. [Persistent Volumes](#viii-persistent-volumes)
 
 ### I. Deploy the first component to Kubernetes
 We will start with `bookinfo-recommendations`, since is the simplest and has no dependecies.   
@@ -66,14 +65,21 @@ Where **username** is your DockerHub username, for example:
 docker tag bookinfo-recommendations:1.0 marianstanciu15/bookinfo-recommendations:1.0
 docker push marianstanciu15/bookinfo-recommendations
 ```
-**4. Create a Kubernetes cluster using minikube**  
-minikube recommends using a hypervisor or Docker to run the cluster.  This example is using Docker to run the cluster, but you can specify other hypervisors. 
+**4. Create a Kubernetes cluster**
+
+We can choose either Minikube or KinD. Minikube is more stable.
+
+
+**With Minikube**  
+minikube recommends using a hypervisor or Docker to run the cluster.  This example is using Docker to run the cluster, but you can specify other hypervisors.   
 For Linux: `KVM`, `VirtualBox`  
 For Windows: `Hyper-V`, `VirtualBox`  
 For Mac: `HyperKit`, `VirtualBox`  
 [more info](https://kubernetes.io/docs/setup/learning-environment/minikube/#specifying-the-vm-driver) 
 ```
 $ minikube start --driver=docker
+#for Windows you could also try with '--driver=hyperv'
+
 😄  minikube v1.10.1 on Redhat 7.7
 ✨  Using the docker driver based on user configuration
 👍  Starting control plane node minikube in cluster minikube
@@ -88,27 +94,67 @@ $ minikube start --driver=docker
 🏄  Done! kubectl is now configured to use "minikube"
 ```
 
-We can now run `docker ps` to see the container that minikube started and in which our cluster will be running
-```
+**With KinD**  
+`KinD` stands for `Kubernetes in Docker` and it will start a Kubernetes cluster in a docker container. [more info](https://kind.sigs.k8s.io/)  
+To create a cluster we execute:
+<pre><code>
+$ <b>kind create cluster</b>  
+ ✓ Ensuring node image (kindest/node:v1.18.2) 🖼 
+ ✓ Preparing nodes 📦  
+ ✓ Writing configuration 📜 
+ ✓ Starting control-plane 🕹️ 
+ ✓ Installing CNI 🔌 
+ ✓ Installing StorageClass 💾 
+Set kubectl context to "kind-kind"
+You can now use your cluster with:
+
+kubectl cluster-info --context kind-kind
+
+Thanks for using kind! 😊
+</code></pre>
+
+We can now run `docker ps` to see the container that minikube/kind started. 
+<pre><code>
+<b>For Minikube</b>
 $ docker ps
 CONTAINER ID        IMAGE                                 COMMAND                  CREATED             STATUS              PORTS                                                                                                  NAMES
 6faa10e050c9        gcr.io/k8s-minikube/kicbase:v0.0.10   "/usr/local/bin/entr…"   51 seconds ago      Up 48 seconds       127.0.0.1:9006->22/tcp, 127.0.0.1:9005->2376/tcp, 127.0.0.1:9004->5000/tcp, 127.0.0.1:9003->8443/tcp   minikube
-```
+
+
+<b>For KinD</b>
+$ docker ps
+CONTAINER ID        IMAGE                  COMMAND                  CREATED             STATUS              PORTS                       NAMES
+144ba50ee543        kindest/node:v1.18.2   "/usr/local/bin/entr…"   4 minutes ago       Up 4 minutes        127.0.0.1:28150->6443/tcp   kind-control-plane
+</code></pre>
 
 We can check the `kubectl` is connected to the right cluster
-```
+<pre><code>
+<b>For Minikube</b>
 $ kubectl cluster-info
 Kubernetes master is running at https://172.17.0.3:8443
 KubeDNS is running at https://172.17.0.3:8443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
 
 To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
-```
+
+<b>For KinD</b>
+$ kubectl cluster-info
+Kubernetes master is running at https://127.0.0.1:28150
+
+To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
+</code></pre>
 We just created a cluster with a single node which is also the master node.
-```
+<pre><code>
+<b>For Minikube</b>
 $ kubectl get nodes
 NAME       STATUS   ROLES    AGE     VERSION
 minikube   Ready    master   9m47s   v1.18.2
-```
+
+<b>For KinD</b>
+$ kubectl get nodes
+NAME                 STATUS   ROLES    AGE    VERSION
+kind-control-plane   Ready    master   6m2s   v1.18.2
+</code></pre>
+
 **5. Create a pod**   
 We start by creating a file  called `bookinfo-recommendations-pod.yaml. We will start with the simplest configuration possible. 
 ```
@@ -520,7 +566,7 @@ kubectl delete rs bookinfo-recommendations
 A `Deployment` is a Kubernetes object that manages multiple versions or revisions. 
 A deployment is the idea of associating a new revision to a new replicaset and manage all the replicasets created this way through a single object. This way you can control which replicaset(revision) is active and how the transition from one replicaset to another is made.
 
-Let's create a new yaml file 'bookinfo-recommentations-deployment.yaml'. The yaml files for our replicaset and our deployment are very similar
+Let's create a new yaml file 'bookinfo-recommendations-deployment.yaml'. The yaml files for our replicaset and our deployment are very similar
 ```
 apiVersion: apps/v1
 kind: Deployment
@@ -654,7 +700,7 @@ For more information about other strategies for updates check this [article](htt
 
 **4. Rolling a new version of the app**  
 Let's try to update our application by adding a new book to our recommendations.   
-Modify the `index.js` in the bookinfo-recommendations and add "Kubernetes in Action" to the `programmingBooks` array (line 29);
+Modify the `index.js` in the bookinfo-recommendations and add "Kubernetes in Action" to the `programmingBooks` array (line 30);
 <pre><code>
 const programmingBooks = ["The Pragmatic Programmer", "Clean Code", "Introduction to Algorithms", <b>"Kubernetes in Action"</b>];
 </pre></code>
@@ -831,7 +877,7 @@ How do we load balanced the traffic between the pods of the same deployment?
 How do we expose our application outside of the cluster, to the users?   
 
 A service is an object that stays in front of a group of pods and all traffic to the pods go through the service that also does load balancing between the pods.  
-The service itself has an IP address that can be used to call the applications behind it. We can install inside the cluster a DNS server to resolve the service name to the service IP address so we can just call it by name. Minikube and most of the cloud providers come with a DNS server by default so we don't have to do anything to set that up. 
+The service itself has an IP address that can be used to call the applications behind it. We can install inside the cluster a DNS server to resolve the service name to the service IP address so we can just call it by name. Minikube, KinD and most of the cloud providers come with a DNS server by default so we don't have to do anything to set that up. 
 A service can be one of four types:  
   * ClusterIP - accesible only inside the cluster
   * NodePort - exposes an IP address outside the cluster
@@ -871,14 +917,14 @@ kubernetes                 ClusterIP   10.96.0.1       <none>        443/TCP    
 </pre></code>
 
 Our service is now created. We see it's type, ClusterIP, it's IP address and the port that is listening on.    
-Ignore the 'kubernetes' service, is created by minikube by default.
+Ignore the 'kubernetes' service, is created by minikube/KinD by default.
 
 Let's taste again the application by using port-forwarding
 ```
 kubectl port-forward bookinfo-ui-9b85d4cf-9mvvh 4200:80
 ``` 
 
-If you open the browser on localhost:4200 the 'Get recommentations' feature should work now.   
+If you open the browser on localhost:4200 the 'Get recommendations' feature should work now.   
 
 **3. Creating a NodePort Service**
 Let's create a service that will expose our app externally.
@@ -911,6 +957,8 @@ kubernetes                 ClusterIP   10.96.0.1       <none>        443/TCP    
 
 To get the address of our app we can run `minikube service bookinfo-ui --url`. 
 This will actually give us the minikube node IP and the nodePort: 'http://minikube_node_ip:nodePort'
+
+For KinD the IP can be retrieved with `kubectl get node kind-control-plane -o jsonpath="{.status.addresses[0].address}{'\n'}"`   and the port can be retrieved with `kubectl get service bookinfo-ui -o jsonpath="{.spec.ports[0].nodePort}{'\n'}"`
 We will see next why we can't use the service IP address.
 
 **5. A closer look at Services**
@@ -1117,7 +1165,12 @@ kind: ConfigMap
 metadata:
   name: book-ui-configmap
 data:
-  default.conf: |
+  nginx.conf: |
+    
+    upstream bookinfo-recommendations {
+        server bookinfo-recommendations:3000;
+    }
+
     server {
         listen       80;
         server_name  localhost;
@@ -1128,35 +1181,19 @@ data:
             index  index.html index.htm;
         }
 
-        location /details-app {
-            set $bookinfo_details_host http://bookinfo-details.default.svc.cluster.local:3000;
-            proxy_pass $bookinfo_details_host;
-        }
-
-        location /reviews-app {
-            set $bookinfo_reviews_host http://bookinfo-reviews.default.svc.cluster.local:8080;
-            proxy_pass $bookinfo_reviews_host;
-        }
-
-        location /ratings-app {
-            set $bookinfo_ratings_host http://bookinfo-ratings.default.svc.cluster.local:8080;
-            proxy_pass $bookinfo_ratings_host;
-        }
-
         location /recommendations-app {
-            set $bookinfo_ratings_host http://bookinfo-recommendations.default.svc.cluster.local:3000;
-            proxy_pass $bookinfo_ratings_host;
+            proxy_pass http://bookinfo-recommendations;
         }
 
         error_page   500 502 503 504  /50x.html;
         location = /50x.html {
             root   /usr/share/nginx/html;
         }
-    } 
+    }
 </code></pre>
 
-We pass the file content as a value to the `default.conf` key by using the `|` symbol. This symbol let's you write a multiline string in a yaml file. 
-The key is also important here, Kubernetes will pass this value as a file and the file name will be the key. We have to call it `default.conf` because nginx is looking for a file with this name. 
+We pass the file content as a value to the `nginx.con` key by using the `|` symbol. This symbol let's you write a multiline string in a yaml file. 
+The key is also important here, Kubernetes will pass this value as a file and the file name will be the key. 
 
 Let's add this config to our deployment. 
 We will add  a `volumes` entry to our spec, define one volume and then reference that volume from our container definition. 
@@ -1553,6 +1590,298 @@ Containers:
 ....
 </code></pre>
 
-You can read more aboute `Probes` [here](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes).
+You can read more aboute `Probes` [here](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes).  
+
 
 **3. Quality of Service**
+
+Kubernetes uses QoS classes to make decisions about scheduling and evicting Pods. 
+
+There are 3 classes of QoS: 
+  * **`Guaranteed`**
+  * **`Burstable`**
+  * **`BestEffort`**
+
+  For a pod to have the `Guaranteed` QoS class all the containers in the pod must have the same `request` and `limit` for the cpu and ram.   
+  For a pod to have the `Burstable` QoS class at least one container must specify at least `request` or `limit` for cpu or ram.
+  A pod with no `request` or `limit` for neither cpu or ram has the  `BestEffort` QoS class.
+
+
+Let's give our `bookinfo-recommendations` a `Guaranteed`  QoS class.
+<pre><code>
+...
+      containers:
+      - name: bookinfo-recommendations
+        image: marianstanciu15/bookinfo-recommendations:2.0
+        env:
+          - name: LIBRARIAN_NAME
+            value: John
+        <b>resources:
+          requests:
+            memory: "400Mi"
+            cpu: "300m"
+          limits:
+            memory: "400Mi"
+            cpu: "300m"</b>
+...
+</code></pre> 
+
+`requests` values are used at scheduling, while `limits` are used while the container is running
+
+`requests` - is used by Kubernetes to find a suitable node for the pod to live in. There must be a node with this much resources available in order for the pod to be scheduled.   
+`limits` - after it was scheduled, if the containers will use more resources than the limit, Kubernetes will kill the container.
+
+### VIII. Persistent Volumes
+
+Let's deploy the next component of our app, `ratings-app`. We will run a `postgres` instance in a container in Kubernetes. We will also need to persist the data so in case of a postgres container failure, we don't lose it.
+
+Let's build and push the image to DockherHub. Don't forget to modify the username. 
+```
+docker build -t marianstanciu15/bookinfo-ratings:1.0 bookinfo-ratings
+docker push marianstanciu15/bookinfo-ratings:1.0
+``` 
+
+Let's start by creating a deployment for our postgres database `bookinfo-ratings-db.yaml`. We will write a deployment and a service in the same file. We split the declaration of the two by using `---`
+<pre><code>
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  <b>name: bookinfo-ratings-db</b>
+  labels:
+    app: bookinfo
+    <b>tier: db</b>
+  namespace: bookinfo-ns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      <b>service: ratings-db</b>
+  template:
+    metadata:
+      labels:
+        <b>service: ratings-db</b>
+    spec:
+      containers:
+      - name: bookinfo-ratings-db
+        <b>image: postgres:13</b>
+        env:
+        - name: POSTGRES_USER
+          value: bnpplearning
+        - name: POSTGRES_PASSWORD
+          value: whatpassword
+        - name: POSTGRES_DB
+          value: ratingsdb
+
+<b>---</b>
+
+apiVersion: v1
+kind: Service
+metadata:
+    name: postgres-ratings
+    namespace: bookinfo-ns
+spec:
+    <b>selector:
+        service: ratings-db</b>
+    ports:
+    <b>- port: 5432</b>
+</code></pre>
+
+Notice that we changed the label `tier` to `db`. We used the `postgres:13` image from Dockerhub. We will use the service name `postgres-ratings` as hostname to access the postgres service. 
+
+Next, let's create the deployment for the spring application `bookinfo-ratings-deployment.yaml`
+<pre><code>
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  <b>name: bookinfo-ratings</b>
+  namespace: bookinfo-ns
+  labels:
+    app: bookinfo
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: ratings
+  template:
+    metadata:
+      labels:
+        service: ratings
+    spec:
+      containers:
+      - name: bookinfo-ratings
+        <b>image: marianstanciu15/bookinfo-ratings:1.0</b>
+        env:
+        - name: DB_PORT
+          <b>value: "5432"</b>
+        - name: DB_HOSTNAME
+         <b> value: postgres-ratings</b>
+        - name: PORT
+          value: "8080"
+</code></pre>
+
+Notice the `DB_HOSTNAME` and `DB_PORT`, they must match the name and port of the `postgres-rating` service. 
+
+We can now deploy it to the Kubernetes cluster and check the logs of the Spring application to see if everything is ok. 
+<pre><code>
+<b>$ kubectl apply -f bookinfo-kubernetes</b>
+<b>$ kubectl get all</b>
+NAME                                       READY   STATUS    RESTARTS   AGE
+pod/bookinfo-ratings-589cfdddcf-cbj9w      1/1     Running   0          22m
+pod/bookinfo-ratings-db-598868554f-m6vmq   1/1     Running   0          23m
+
+NAME                       TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
+service/postgres-ratings   ClusterIP   10.109.229.114   <none>        5432/TCP   24m
+
+NAME                                  READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/bookinfo-ratings      1/1     1            1           22m
+deployment.apps/bookinfo-ratings-db   1/1     1            1           23m
+
+NAME                                             DESIRED   CURRENT   READY   AGE
+replicaset.apps/bookinfo-ratings-589cfdddcf      1         1         1       22m
+replicaset.apps/bookinfo-ratings-db-598868554f   1         1         1       23m
+<b>$ kubectl logs -f pod/bookinfo-ratings-589cfdddcf-cbj9w</b>
+</code></pre>
+
+If everything is ok we should see this message in the console:
+<pre><code>
+2020-06-09 14:21:18.532  INFO 1 --- [           main] c.i.c.l.b.BookinfoRatingsApplication     : Started BookinfoRatingsApplication in 9.326 seconds (JVM running for 10.248)
+</code></pre>
+
+Our application started, but if the pod that contains the postgres container was to fail, we will lose all the data. We need to add some volumes to this container, a special volume called a `PersistentVolumeClaim`. This `claim` made by the pod is a request for storage that Kubernetes will try to fulfill.   
+But in order to fulfill this request, we must tell Kubernetes where and how much data it can persist. We must define one or more `PersistentVolume` objects, which will actually store information about the storage, like location(host path or cloud provided storage external to the cluster), access mode(ReadWriteOnce, ReadOnly, etc) and storage class (manual, dynamic, etc). 
+
+When an application makes a `claim`, Kubernetes will look at the `PersistentVolumes`, sees how much space it has left to allocate and if it's the right type of storage class(manual, dynamic, etc) and if any matching storage is found, the `PersistentVolumeClaim` will be bound to the `PersistentVolume`.   
+
+We could also set up dynamically provisioned storage. You can read more about this [here](https://kubernetes.io/docs/concepts/storage/dynamic-provisioning/) . In our example we will store the data on minikube node. 
+
+minikube is configured to persist files stored under the following directories, which are made in the Minikube VM (or on your localhost if running on bare metal). You may lose data from other directories on reboots.
+
+* /data  
+* /var/lib/minikube  
+* /var/lib/docker  
+* /tmp/hostpath_pv  
+* /tmp/hostpath-provisioner  
+
+Let's begin by creating a `PersistentVolume` object. `bookinfo-pv.yaml`
+<pre><code>
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv0001
+  namespace: bookinfo-ns
+spec:
+  <b>storageClassName: manual</b>
+  accessModes:
+    <b>- ReadWriteOnce</b>
+  capacity:
+    <b>storage: 1Gi</b>
+  hostPath:
+    <b>path: /data/bookinfo/pv0001/ </b>
+</code></pre>
+
+Access mode can be of the following:  
+
+* ReadWriteOnce – the volume can be mounted as read-write by a single node  
+* ReadOnlyMany – the volume can be mounted read-only by many nodes  
+* ReadWriteMany – the volume can be mounted as read-write by many nodes  
+
+the `hostPath` is relative to the container/vm that minikube runs in.  
+the `storageClassName` indicates the storage class. In this case we manually allocated space on the host. 
+
+Let's create a `PersistentVolumeClaim` now. `bookinfo-ratings-pvc.yaml`
+<pre><code>
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bookinfo-ratings-pvc
+  namespace: bookinfo-ns
+spec:
+  <b>storageClassName: manual</b>
+  accessModes:
+    <b>- ReadWriteOnce</b>
+  <b>volumeMode: Filesystem</b>
+  resources:
+    <b>requests:
+      storage: 512Mi</b>
+</code></pre>
+
+Now we must define a volume in the database deployment and reference the `PersistentVolumeClaim`. Make the following modifications in `bookinfo-ratings-db.yaml`
+<pre><code>
+    spec:
+      <b>volumes:
+        - name: ratings-storage
+          persistentVolumeClaim:
+              claimName: bookinfo-ratings-pvc</b>
+      containers:
+      - name: bookinfo-ratings-db
+        image: postgres:13
+        env:
+        - name: POSTGRES_USER
+          value: bnpplearning
+        - name: POSTGRES_PASSWORD
+          value: whatpassword
+        - name: POSTGRES_DB
+          value: ratingsdb
+        <b>volumeMounts:
+          - mountPath: "/var/lib/postgresql/data"
+            name: ratings-storage</b>
+</code></pre>
+
+Let's deploy the `PersistentVolume` first to see how it actually works.
+<pre><code>
+<b>$ kubectl apply -f bookinfo-kubernetes/bookinfo-pv.yaml</b>
+<b>$ kubectl get pv</b>
+
+NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS        CLAIM                STORAGECLASS   REASON   AGE
+<b>pv0001                                     1Gi        RWO            Retain           Available                          manual                  3s</b>
+</pre></code>
+We see that the persitent volume was created and it's status is `Available`, it was not bound to any `PersistentVolumeClaim` yet.   
+
+Let's create the `PersistenceVolumeClaim` now.
+ <pre><code>
+<b>$ kubectl apply -f bookinfo-kubernetes/bookinfo-ratings-pvc.yaml</b>
+<b>$ kubectl get pvc
+NAME                   STATUS   VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+bookinfo-ratings-pvc   Bound    pv0001   1Gi        RWO            manual         3s<b>
+</pre></code>
+
+We see that it already was bounded to a volume called pv0001(our PersistentVolume). 
+Let's look again at our pv
+<pre><code>
+<b>$ kubectl get pv
+NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS        CLAIM                              STORAGECLASS   REASON   AGE
+pv0001                                     1Gi        RWO            Retain           Bound         bookinfo-ns/bookinfo-ratings-pvc   manual                  7m20s</b>
+</pre></code>
+
+The pv status changed to bound. We never specified in the persistent volume claim to which persistent volume to bound to, this way we decoupled the application and the storage which is dependent on the underlying infrastructure(cloud provider, vms, bare metal).
+
+Let's redeploy the database now and test to see if our data is persisted. 
+```
+$ kubectl apply -f bookinfo-kubernetes
+$ kubectl get pods
+NAME                                READY   STATUS    RESTARTS   AGE
+bookinfo-ratings-db-589cfdddcf-rdnbb   1/1     Running   0          27m 
+bookinfo-ratings-6129c125125-61a35   1/1     Running   0          27m 
+...
+$ kubectl port-forward bookinfo-ratings-6129c125125-61a35 8080:8080
+```
+Now we can make a `POST` request to `http://localhost:8080/ratings-app/ratings` with this body
+```
+   {
+        "bookId": "1",
+        "rating": 5,
+        "user": "John"
+    }
+```
+
+You can check if the rating was created with a `GET` request at `http://localhost:8080/ratings-app/ratings/1`
+
+Let's delete the database pod
+```
+kubectl delete pod bookinfo-ratings-db-589cfdddcf-rdnbb
+```
+
+And if we retry the request at `http://localhost:8080/ratings-app/ratings/1` we will see that the data is still there.   
+
+You can read more about storage in Kubernetes [here](https://kubernetes.io/docs/concepts/storage/volumes/)
