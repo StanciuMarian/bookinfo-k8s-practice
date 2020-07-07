@@ -1,0 +1,89 @@
+<div class="row mt-4 ml-1">
+    <div class="col-12">
+        <p-carousel *ngIf="books?.length"[value]="books" [numVisible]="4" [numScroll]="1">
+            <p-header>
+                <h3>Bookshelf</h3>
+            </p-header>
+            <ng-template let-book pTemplate="item">
+                    <div (click)="selectBook(book)"  class="text-center" style="border:  1px solid #b3c2ca; border-radius: 3px;margin: 0.3em; padding: 2em 0 2.25em 0;">
+                        <div class="p-col-12">
+                            <img src="assets/images/book.png" />
+                        </div>
+                        <div class="p-col-12 book-data">
+                            <div>{{book.name}}</div>
+                            <div>{{book.author}} | {{book.publisher}}</div>
+                        </div>
+                    </div>
+            </ng-template>
+        </p-carousel>
+    </div>
+</div>
+<div *ngIf="selectedBook" class="row mt-4 ml-1">
+    <div class="col-12">
+        <em>Reviews and rating for: {{selectedBook.name}}</em>
+        <p-tabView>
+            <p-tabPanel header="Reviews" leftIcon="fa fa-comment">
+                <ul *ngFor="let review of reviews">
+                    <li>{{review.reviewContent}}</li>
+                </ul>
+                <div class="row">
+                    <div class="col-2">
+                        <button (click)=addReview() class="btn btn-primary btn-sm">Add review</button>
+                    </div>
+                    <div class="col-4 form-group">
+                        <textarea class="form-control" [(ngModel)]="review" cols="60"></textarea>
+                    </div>
+                </div>
+            </p-tabPanel>
+            <p-tabPanel header="Ratings" leftIcon="fa fa-star"> 
+                <ul *ngFor="let rating of ratings">
+                    <li>{{rating.rating}} <i class="fa fa-star"></i></li>
+                </ul>
+                <div class="row">
+                    <div class="col-4 form-group">
+                        <select [(ngModel)]="rating" class="form-control">
+                            <option value="5">5</option>
+                            <option value="4">4</option>
+                            <option value="3">3</option>
+                            <option value="2">2</option>
+                            <option value="1">1</option>
+                        </select>
+                    </div>
+                    <div class="col-2">
+                        <button (click)="addRating()" class="btn btn-primary btn-sm">Rate this book</button>
+                    </div>
+                </div>
+            </p-tabPanel>
+        </p-tabView>
+    </div>
+</div>
+
+<div class="mt-4 ml-4">
+    <p-header>
+        <h3>Recommendations</h3>
+    </p-header>
+    <div class="row">
+        <div class="col-4 form-group">
+            <label for="genres">Recommend me a book about: </label>
+            <select name="genres" [(ngModel)]="selectedGenre" class="form-control">
+                <option value="all">All</option>
+                <option value="programming">Programming</option>
+                <option value="cooking">Cooking</option>
+            </select>
+        </div>
+        <div class="col-2" style="margin-top: 2.2rem!important">
+            <button (click)="getRecommendations()" class="btn btn-primary btn-sm">Get recommendations</button>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-6">
+            <ul>
+                <li *ngFor="let recommendation of recommendations">
+                    {{recommendation}}
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<button *ngIf="showInitButton"  (click)="initDatabase()">initDatabase</button>
