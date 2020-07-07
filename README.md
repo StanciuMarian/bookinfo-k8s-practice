@@ -298,7 +298,7 @@ Also, we can pass multiple files to it by passing a folder. In this case Kuberne
 More about Kubernetes declarative and imperative styles of configuration management can be found [here](https://kubernetes.io/docs/concepts/overview/working-with-objects/object-management/), [here](https://kubernetes.io/docs/tasks/manage-kubernetes-objects/declarative-config/) and [here](https://kubernetes.io/docs/tasks/manage-kubernetes-objects/imperative-config/)  
    
 **2. Creating the yaml file**  
-We will create a file called 'bookinfo-recommendations-replicaset.yaml'
+We will create a file called `bookinfo-recommendations-replicaset.yaml`
 Here is our `ReplicaSet` definition:
 ```
 apiVersion: apps/v1
@@ -534,7 +534,7 @@ kubectl delete rs bookinfo-recommendations
 A `Deployment` is a Kubernetes object that manages multiple versions or revisions. 
 A deployment is the idea of associating a new revision to a new replicaset and manage all the replicasets created this way through a single object. This way you can control which replicaset(revision) is active and how the transition from one replicaset to another is made.
 
-Let's create a new yaml file 'bookinfo-recommendations-deployment.yaml'. The yaml files for our replicaset and our deployment are very similar
+Let's create a new yaml file `bookinfo-recommendations-deployment.yaml`. The yaml files for our replicaset and our deployment are very similar
 ```
 apiVersion: apps/v1
 kind: Deployment
@@ -776,7 +776,7 @@ kubectl delete deployment bookinfo-recommendations
 **1. Deploying the second component of our app**  
 Before we create a Kubernetes Service let's try to understand why we need it in the first place.  
 
-Let's create a new folder called `bookinfo-kubernetes` in the `bookinfo-practice` folder and copy here only the deployment that we created earlier 'bookinfo-recommendations-deployment.yaml'.
+Let's create a new folder called `bookinfo-kubernetes` in the `bookinfo-practice` folder and copy here only the deployment that we created earlier `bookinfo-recommendations-deployment.yaml`.
 This will be the folder where we keep our yaml files from now on. 
 
 Let's create an image for another component of our app `bookinfo-ui` and push it to the registry. Don't forget to replace the username with your own. 
@@ -784,7 +784,7 @@ Let's create an image for another component of our app `bookinfo-ui` and push it
 docker build -t marianstanciu15/bookinfo-ui:1.0 bookinfo-ui
 docker push marianstanciu15/bookinfo-ui:1.0
 ```
-Let's build a new Deployment for it 'bookinfo-ui-deployment.yaml' in the `bookinfo-kubernetes` folder (don't forget to change the image name with your username)
+Let's build a new Deployment for it `bookinfo-ui-deployment.yaml` in the `bookinfo-kubernetes` folder (don't forget to change the image name with your username)
 ```
 apiVersion: apps/v1
 kind: Deployment
@@ -854,7 +854,7 @@ A service can be one of four types:
 
 
 **3. Creating a ClusterIP Service**
-Let's start with a ClusterIP, we want such a service for our `bookinfo-recommendations` which should be accessible only inside the cluster, to be consumed by `bookinfo-ui`. We will start by creating a file 'bookinfo-recommendations-service.yaml'
+Let's start with a ClusterIP, we want such a service for our `bookinfo-recommendations` which should be accessible only inside the cluster, to be consumed by `bookinfo-ui`. We will start by creating a file `bookinfo-recommendations-service.yaml`
 ```
 apiVersion: v1
 kind: Service
@@ -926,7 +926,6 @@ kubernetes                 ClusterIP   10.96.0.1       <none>        443/TCP    
 To get the address of our app we can run `minikube service bookinfo-ui --url`. 
 This will actually give us the minikube node IP and the nodePort: 'http://minikube_node_ip:nodePort'
 
-For KinD the IP can be retrieved with `kubectl get node kind-control-plane -o jsonpath="{.status.addresses[0].address}{'\n'}"`   and the port can be retrieved with `kubectl get service bookinfo-ui -o jsonpath="{.spec.ports[0].nodePort}{'\n'}"`
 We will see next why we can't use the service IP address.
 
 **5. A closer look at Services**
@@ -1811,7 +1810,7 @@ Let's create the `PersistenceVolumeClaim` now.
 <b>$ kubectl apply -f bookinfo-kubernetes/bookinfo-ratings-pvc.yaml</b>
 <b>$ kubectl get pvc
 NAME                   STATUS   VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS   AGE
-bookinfo-ratings-pvc   Bound    pv0001   1Gi        RWO            manual         3s<b>
+bookinfo-ratings-pvc   Bound    pv0001   1Gi        RWO            manual         3s</b>
 </pre></code>
 
 We see that it already was bounded to a volume called pv0001(our PersistentVolume). 
