@@ -1,7 +1,11 @@
 
+
+
 ### In this exercise we will be deploying an application to a Kubernetes cluster.  
-We will be using [this application](https://i.ibb.co/0M6JR1X/full-example.png) and will start from the [kubernetes-practice](https://github.ibm.com/BNPPCloudTeam/kubernetes-practice) repo(master branch). We already have all the Dockerfiles created and a docker-compose.yaml.   
-All the commands were executed in a bash shell and not all of them will work in other shells. You can use Git Bash for Windows. We will be using `bookinfo-practice` folder as the root folder for all the commands.  
+We will be using the [bookinfo-k8s-practice application](https://i.ibb.co/0M6JR1X/full-example.png) ([repo](https://github.ibm.com/BNPPCloudTeam/kubernetes-practice)).
+The inspiration for this demo application was the Istio's [bookinfo](https://github.com/istio/istio/tree/master/samples/bookinfo) example.   
+We already have all the Dockerfiles. 
+All the commands were executed in a bash shell, under a Linux environment, but it  should also work under a Windows/macOS environment. You can use Git Bash for Windows. We will be using the root folder of the repository for all the commands.  
 
 Table of contents:   
 1. [Deploy the first component to Kubernetes](#i-deploy-the-first-component-to-kubernetes)
@@ -67,11 +71,8 @@ docker push marianstanciu15/bookinfo-recommendations
 ```
 **4. Create a Kubernetes cluster**
 
-We can choose either Minikube or KinD. Minikube is more stable.
 
-
-**With Minikube**  
-minikube recommends using a hypervisor or Docker to run the cluster.  This example is using Docker to run the cluster, but you can specify other hypervisors.   
+Minikube recommends using a hypervisor or Docker to run the cluster.  This example is using Docker to run the cluster, but you can specify other hypervisors.   
 For Linux: `KVM`, `VirtualBox`  
 For Windows: `Hyper-V`, `VirtualBox`  
 For Mac: `HyperKit`, `VirtualBox`  
@@ -94,69 +95,34 @@ $ minikube start --driver=docker
 🏄  Done! kubectl is now configured to use "minikube"
 ```
 
-**With KinD**  
-`KinD` stands for `Kubernetes in Docker` and it will start a Kubernetes cluster in a docker container. [more info](https://kind.sigs.k8s.io/)  
-To create a cluster we execute:
+
+
+We can now run `docker ps` to see the container that minikube started. 
 <pre><code>
-$ <b>kind create cluster</b>  
- ✓ Ensuring node image (kindest/node:v1.18.2) 🖼 
- ✓ Preparing nodes 📦  
- ✓ Writing configuration 📜 
- ✓ Starting control-plane 🕹️ 
- ✓ Installing CNI 🔌 
- ✓ Installing StorageClass 💾 
-Set kubectl context to "kind-kind"
-You can now use your cluster with:
-
-kubectl cluster-info --context kind-kind
-
-Thanks for using kind! 😊
-</code></pre>
-
-We can now run `docker ps` to see the container that minikube/kind started. 
-<pre><code>
-<b>For Minikube</b>
 $ docker ps
 CONTAINER ID        IMAGE                                 COMMAND                  CREATED             STATUS              PORTS                                                                                                  NAMES
 6faa10e050c9        gcr.io/k8s-minikube/kicbase:v0.0.10   "/usr/local/bin/entr…"   51 seconds ago      Up 48 seconds       127.0.0.1:9006->22/tcp, 127.0.0.1:9005->2376/tcp, 127.0.0.1:9004->5000/tcp, 127.0.0.1:9003->8443/tcp   minikube
-
-
-<b>For KinD</b>
-$ docker ps
-CONTAINER ID        IMAGE                  COMMAND                  CREATED             STATUS              PORTS                       NAMES
-144ba50ee543        kindest/node:v1.18.2   "/usr/local/bin/entr…"   4 minutes ago       Up 4 minutes        127.0.0.1:28150->6443/tcp   kind-control-plane
 </code></pre>
+
+
 
 We can check the `kubectl` is connected to the right cluster
 <pre><code>
-<b>For Minikube</b>
 $ kubectl cluster-info
 Kubernetes master is running at https://172.17.0.3:8443
 KubeDNS is running at https://172.17.0.3:8443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
 
 To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
-
-<b>For KinD</b>
-$ kubectl cluster-info
-Kubernetes master is running at https://127.0.0.1:28150
-
-To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 </code></pre>
 We just created a cluster with a single node which is also the master node.
 <pre><code>
-<b>For Minikube</b>
 $ kubectl get nodes
 NAME       STATUS   ROLES    AGE     VERSION
 minikube   Ready    master   9m47s   v1.18.2
-
-<b>For KinD</b>
-$ kubectl get nodes
-NAME                 STATUS   ROLES    AGE    VERSION
-kind-control-plane   Ready    master   6m2s   v1.18.2
 </code></pre>
 
 **5. Create a pod**   
-We start by creating a file  called `bookinfo-recommendations-pod.yaml. We will start with the simplest configuration possible. 
+We start by creating a file  called `bookinfo-recommendations-pod.yaml`. We will start with the simplest configuration possible. 
 ```
 apiVersion: v1 
 kind: Pod 
@@ -220,12 +186,14 @@ You can see that there is a bug. The message in the logs says 'My name is undefi
 
 <pre>
 <code>
+...
 containers:
   - name: bookinfo-recommendations
     image: marianstanciu15/bookinfo-recommendations:1.0
     <b>env:
       - name: LIBRARIAN_NAME
         value: John</b>
+...
 </code>
 </pre>
 
